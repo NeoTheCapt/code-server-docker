@@ -1,16 +1,5 @@
-# secrets
+# Runtime data — persisted volumes, not source code
+data/
+
+# Local environment (contains passwords)
 .env
-
-# local/editor
-.DS_Store
-*.swp
-*~
-
-# backups / noise
-backups/
-Dockerfile.bak.*
-*.bak
-*.bak.*
-
-# logs
-*.log
