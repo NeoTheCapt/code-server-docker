@@ -1,0 +1,24 @@
+services:
+  code-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: code-server:local
+    container_name: code-server
+    user: "1001:1001"
+    environment:
+      - PASSWORD=${PASSWORD}
+      - TZ=Asia/Singapore
+      - HOME=/home/coder
+      - SHELL=/usr/bin/zsh
+      - UPDATE_ON_START=1
+      - PATH=/home/coder/.local/bin:/home/coder/.venv/bin:/home/coder/.cargo/bin:/home/coder/.local/go/bin:/home/coder/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      - /data/code-server/home:/home/coder
+    restart: unless-stopped
+    networks:
+      - nginx
+
+networks:
+  nginx:
+    external: true

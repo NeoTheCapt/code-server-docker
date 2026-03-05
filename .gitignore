@@ -1,0 +1,16 @@
+# secrets
+.env
+
+# local/editor
+.DS_Store
+*.swp
+*~
+
+# backups / noise
+backups/
+Dockerfile.bak.*
+*.bak
+*.bak.*
+
+# logs
+*.log
