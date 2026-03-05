@@ -1,0 +1,14 @@
+# Overlay for running behind an nginx reverse proxy.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.nginx.yml up -d
+#
+# Set NGINX_NETWORK in .env (default: nginx).
+services:
+  code-server:
+    ports: []
+    networks:
+      - nginx
+
+networks:
+  nginx:
+    name: ${NGINX_NETWORK:-nginx}
+    external: true

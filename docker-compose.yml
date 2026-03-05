@@ -5,20 +5,17 @@ services:
       dockerfile: Dockerfile
     image: code-server:local
     container_name: code-server
-    user: "1001:1001"
+    user: "${PUID:-1000}:${PGID:-1000}"
+    ports:
+      - "${PORT:-8929}:8080"
     environment:
-      - PASSWORD=${PASSWORD}
-      - TZ=Asia/Singapore
+      - PASSWORD=${PASSWORD:?PASSWORD is required}
+      - TZ=${TZ:-Asia/Singapore}
       - HOME=/home/coder
       - SHELL=/usr/bin/zsh
-      - UPDATE_ON_START=1
-      - PATH=/home/coder/.local/bin:/home/coder/.venv/bin:/home/coder/.cargo/bin:/home/coder/.local/go/bin:/home/coder/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - UPDATE_ON_START=${UPDATE_ON_START:-1}
+      - HTTPS=${HTTPS:-0}
     volumes:
-      - /data/code-server/home:/home/coder
+      - ${DATA_DIR:-./data/home}:/home/coder
+      - ${PROJECTS_DIR:-./data/projects}:/home/coder/dev/projects
     restart: unless-stopped
-    networks:
-      - nginx
-
-networks:
-  nginx:
-    external: true
