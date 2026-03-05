@@ -111,16 +111,13 @@ install_python_user() {
 }
 
 install_claude_native_user() {
-  if ! command -v claude >/dev/null 2>&1; then
-    log "installing Claude Code (native install)"
-    timeout 300 bash -c 'curl -fsSL https://claude.ai/install.sh | bash' || \
-      log "WARNING: Claude Code install failed (OOM or network) - will retry on next start"
+  # Check both command PATH and the known install location
+  if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
+    return 0
   fi
-
-  if [ "${UPDATE_ON_START:-1}" = "1" ] && command -v claude >/dev/null 2>&1; then
-    log "updating Claude Code (native)"
-    timeout 180 claude update || true
-  fi
+  log "installing Claude Code (native install)"
+  timeout 300 bash -c 'curl -fsSL https://claude.ai/install.sh | bash' || \
+    log "WARNING: Claude Code install failed (OOM or network) - will retry on next start"
 }
 
 install_npm_agents_user() {
@@ -133,42 +130,64 @@ install_npm_agents_user() {
       task-master-ai \
       vite
   fi
-
-  if [ "${UPDATE_ON_START:-1}" = "1" ]; then
-    log "updating npm agents"
-    timeout 300 npm i -g @openai/codex@latest --no-audit --prefer-offline --legacy-peer-deps || true
-    timeout 300 npm i -g task-master-ai@latest --no-audit --prefer-offline --legacy-peer-deps || true
-  fi
 }
 
-sync_claude_rules() {
-  local repo="$HOME/.cache/everything-claude-code"
-  if [ -d "$repo/.git" ]; then
-    timeout 60 git -C "$repo" pull --ff-only || true
-  else
-    rm -rf "$repo" || true
-    timeout 60 git clone --depth=1 https://github.com/affaan-m/everything-claude-code.git "$repo" || true
-  fi
+# All update/sync operations — run in background so startup is not blocked
+background_updates() {
+  {
+    if [ "${UPDATE_ON_START:-1}" = "1" ]; then
+      # Update Claude Code
+      if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
+        log "bg: updating Claude Code"
+        timeout 180 claude update || true
+      fi
 
-  mkdir -p "$HOME/.claude/rules"
-  rm -rf "$HOME/.claude/rules"/* || true
-  if [ -d "$repo/rules" ]; then
-    cp -a "$repo/rules/." "$HOME/.claude/rules/" || true
-  fi
+      # Update npm agents
+      log "bg: updating npm agents"
+      timeout 300 npm i -g @openai/codex@latest --no-audit --prefer-offline --legacy-peer-deps || true
+      timeout 300 npm i -g task-master-ai@latest --no-audit --prefer-offline --legacy-peer-deps || true
+    fi
+
+    # Sync claude rules
+    local repo="$HOME/.cache/everything-claude-code"
+    if [ -d "$repo/.git" ]; then
+      timeout 60 git -C "$repo" pull --ff-only || true
+    else
+      rm -rf "$repo" || true
+      timeout 60 git clone --depth=1 https://github.com/affaan-m/everything-claude-code.git "$repo" || true
+    fi
+    mkdir -p "$HOME/.claude/rules"
+    rm -rf "$HOME/.claude/rules"/* || true
+    if [ -d "$repo/rules" ]; then
+      cp -a "$repo/rules/." "$HOME/.claude/rules/" || true
+    fi
+
+    log "bg: updates complete"
+  } &
+}
+
+background_installs() {
+  {
+    install_go_user
+    install_rust_user
+    install_python_user
+    install_claude_native_user
+    install_npm_agents_user
+    background_updates
+    log "bg: all installs complete"
+  } &
 }
 
 main() {
   ensure_dirs
   ensure_path_exports
+
+  # These are fast and affect first-launch UX — keep synchronous
   install_oh_my_zsh
   configure_code_server_terminal
 
-  install_go_user
-  install_rust_user
-  install_python_user
-  install_claude_native_user
-  install_npm_agents_user
-  sync_claude_rules
+  # All tool installs and updates run in background
+  background_installs
 
   local args=(--bind-addr "0.0.0.0:8080")
   if [ "${HTTPS:-0}" = "1" ]; then
